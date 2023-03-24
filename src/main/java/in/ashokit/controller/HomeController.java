@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.google.gson.Gson;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
@@ -23,50 +24,51 @@ import in.ashokit.model.Response;
 
 @Controller
 public class HomeController {
-	
+
 	private RazorpayClient client;
 	/**
 	 * add your secretId and secretValue you got from your RazorPay account.
 	 */
 	private static final String SECRET_ID = "";
 	private static final String SECRET_KEY = "";
-	
+	Gson gson = new Gson();
+
 	public HomeController() throws RazorpayException {
-		this.client =  new RazorpayClient(SECRET_ID, SECRET_KEY); 
+		this.client = new RazorpayClient(SECRET_ID, SECRET_KEY);
 	}
-	
-	@GetMapping(value="/home")
+
+	@GetMapping(value = "/home")
 	public String getHomeInit() {
 		return "home";
 	}
-	
-	@RequestMapping(value="/createPayment", method=RequestMethod.POST)
+
+	@RequestMapping(value = "/createPayment", method = RequestMethod.POST)
 	@ResponseBody
-	public ResponseEntity<Response> createOrder(@RequestBody Customer customer) {
+	public ResponseEntity<String> createOrder(@RequestBody Customer customer) {
 		System.out.println(customer);
 		try {
-		
+
 			/**
-			 * creating an order in RazorPay.
-			 * new order will have order id. you can get this order id by calling  order.get("id")
+			 * creating an order in RazorPay. new order will have order id. you can get this
+			 * order id by calling order.get("id")
 			 */
-			Order order = createRazorPayOrder(customer.getAmount() );
-			RazorPay razorPay = getRazorPay((String)order.get("id"), customer);
-			
-			return new ResponseEntity<Response>(getResponse(razorPay, 200),HttpStatus.OK);
+			Order order = createRazorPayOrder(customer.getAmount());
+			RazorPay razorPay = getRazorPay((String) order.get("id"), customer);
+
+			return new ResponseEntity<String>(gson.toJson(getResponse(razorPay, 200)), HttpStatus.OK);
 		} catch (RazorpayException e) {
 			e.printStackTrace();
 		}
-		return new ResponseEntity<Response>(getResponse(new RazorPay(), 500),HttpStatus.EXPECTATION_FAILED);
+		return new ResponseEntity<String>(gson.toJson(getResponse(new RazorPay(), 500)), HttpStatus.EXPECTATION_FAILED);
 	}
-	
+
 	private Response getResponse(RazorPay razorPay, int statusCode) {
 		Response response = new Response();
 		response.setStatusCode(statusCode);
 		response.setRazorPay(razorPay);
 		return response;
-	}	
-	
+	}
+
 	private RazorPay getRazorPay(String orderId, Customer customer) {
 		RazorPay razorPay = new RazorPay();
 		razorPay.setApplicationFee(convertRupeeToPaise(customer.getAmount()));
@@ -78,20 +80,20 @@ public class HomeController {
 		razorPay.setSecretKey(SECRET_ID);
 		razorPay.setImageURL("/logo");
 		razorPay.setTheme("#F37254");
-		razorPay.setNotes("notes"+orderId);
-		
+		razorPay.setNotes("notes" + orderId);
+
 		return razorPay;
 	}
-	
+
 	private Order createRazorPayOrder(String amount) throws RazorpayException {
 		JSONObject options = new JSONObject();
 		options.put("amount", convertRupeeToPaise(amount));
 		options.put("currency", "INR");
 		options.put("receipt", "txn_123456");
-		options.put("payment_capture", 1); // You can enable this if you want to do Auto Capture. 
+		options.put("payment_capture", 1); // You can enable this if you want to do Auto Capture.
 		return client.Orders.create(options);
 	}
-	
+
 	private String convertRupeeToPaise(String paise) {
 		BigDecimal b = new BigDecimal(paise);
 		BigDecimal value = b.multiply(new BigDecimal("100"));
